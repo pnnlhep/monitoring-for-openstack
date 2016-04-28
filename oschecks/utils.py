@@ -132,7 +132,7 @@ class Nova(object):
             auth_token = options.os_auth_token
         if options.os_compute_api_version:
             api_version = options.os_compute_api_version
-        client = client.get_client_class(api_version)(
+        client = client.Client("2.2",
             options.os_username,
             options.os_password,
             options.os_tenant_name,
