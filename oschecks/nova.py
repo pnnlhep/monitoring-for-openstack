@@ -59,10 +59,45 @@ def _check_nova_api():
                  "list %d flavors in %d seconds.|response_time=%d" %
                  (len(flavors), elapsed, elapsed))
 
+def _check_nova_service_list():
+    nova = utils.Nova()
+    nova.add_argument('-s',dest='diabledcountwarning',type=int,default=5,
+                      help='How many disabled services cause a warning')
+    nova.add_argument('-d',dest='downcountcritical',type=int,default=0,
+                      help='How many enabled services that are down cause a critical')
+    options, args, client = nova.setup()
+
+    def server_list():
+        return list(client.services.list())
+
+    elapsed,services = utils.timeit(server_list)
+    if not services:
+        utils.critical("No Services found in %d seconds"%(elapsed))
+        return
+    
+    count=len(services)
+    enabled_up=len([svc for svc in services if svc.state=='up' and svc.status=='enabled'])
+    enabled_other=len([svc for svc in services if svc.state!='up' and svc.status=='enabled'])
+    disabled=len([svc for svc in services if svc.status=='disabled'])
+
+    if enabled_other > options.downcountcritical:
+        utils.critical("%d services not in the up state, but which are enabled" %
+                       (enabled_other))
+    elif disabled > options.diabledcountwarning:
+        utils.warning("%d services disabled, which is more than %d" % 
+                       (disabled,options.diabledcountwarning))
+    else:
+        utils.ok("Get Services nova API is working:"
+                 "list %d en-up, %d en-other, %d disabled||response_time=%d" %
+                 (enabled_up,enabled_other,disabled,elapsed))
+
+     
 
 def check_nova_api():
     utils.safe_run(_check_nova_api)
 
+def check_nova_service_list():
+    utils.safe_run(_check_nova_service_list)
 
 default_image_name = 'cirros'
 default_flavor_name = 'm1.tiny'

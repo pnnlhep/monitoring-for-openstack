@@ -60,6 +60,40 @@ def _check_neutron_api():
 def check_neutron_api():
     utils.safe_run(_check_neutron_api)
 
+def _check_neutron_agent_list():
+    neutron = utils.Neutron()
+    neutron.add_argument('-d', dest='dead', type=int, default=5,
+                         help='Warning level for dead agents')
+    neutron.add_argument('-a', dest='mia', type=int, default=0,
+                         help='Critical level for missing in action agents')
+    options, args, client = neutron.setup()
+
+    elapsed, agents = utils.timeit(client.list_agents)
+    if not agents or len(agents.get('agents', [])) <= 0:
+        utils.critical("Unable to contact neutron API.")
+
+    agents = agents.get('agents',[])
+    count = len(agents)
+    alive = len([a for a in agents if a['alive']])
+    dead = count - alive
+    mia = len([a for a in agents if a['alive'] == False and a['admin_state_up'] ])
+    if mia > options.mia:
+        utils.critical("%d Missing in Action "
+                       "|response_time=%d" %
+                       (mia, elapsed))
+    elif dead > options.dead:
+        utils.warning("%d dead agents"
+                      "|response_time=%d" %
+                      (dead, elapsed))
+    else:
+        utils.ok("Agent list neutron API is working: "
+                 "list %d agents in %d seconds.|response_time=%d" %
+                 (len(agents), elapsed, elapsed))
+
+
+def check_neutron_agent_list():
+    utils.safe_run(_check_neutron_agent_list)
+
 
 DAEMON_DEFAULT_PORT = 9696
 
